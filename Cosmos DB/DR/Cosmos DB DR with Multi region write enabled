@@ -4,6 +4,9 @@ This document outlines the step-by-step Azure CLI commands to execute a Disaster
 Prerequisites
 Azure CLI installed and authenticated (az login)
 Sufficient RBAC permissions on the Cosmos DB account (Contributor or Owner)
+# Run below command to assign the RBAC permission replace the value of principle id with object id of the identity
+<# az cosmosdb sql role assignment create  --resource-group "rg-emea-sql-mig-poc"  --account-name "cosdb-acc02"  --role-definition-id 00000000-0000-0000-0000-000000000002   --principal-id "695ad385-ee98-6c9a-9989-79e67dd2vrc3"   --scope "/"#>
+
 Cosmos DB account configured with multi-region write enabled
 DR Simulation Steps
 Step 1 — Validate Multi-Region Write is Enabled
