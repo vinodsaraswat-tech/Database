@@ -1,0 +1,77 @@
+Overview
+This document outlines the step-by-step Azure CLI commands to execute a Disaster Recovery simulation for an Azure Cosmos DB account. The steps cover validation, manual failover, region removal, and region re-addition.
+ 
+Prerequisites
+Azure CLI installed and authenticated (az login)
+Sufficient RBAC permissions on the Cosmos DB account (Contributor or Owner)
+Cosmos DB account configured with multi-region write enabled
+DR Simulation Steps
+Step 1 — Validate Multi-Region Write is Enabled
+Command (template):
+az cosmosdb show --resource-group "ResourceGroupName" --name "CosmosdbAccountName" --query "enableMultipleWriteLocations"
+<# check cosmos db multiregion write enabled#>
+e.g.
+az cosmosdb show --resource-group "rg-emea-sql-mig-poc" --name "cosdb-acc02" --query "enableMultipleWriteLocations"
+
+ 
+Step 2 — List Configured Regions
+Command (template):
+az cosmosdb show  --resource-group "ResourceGroupName" --name "CosmosdbAccountName"  --query "locations[].locationName"
+ 
+<# display cosmos db locations#>
+e.g.
+az cosmosdb show  --resource-group "rg-emea-sql-mig-poc" --name "cosdb-acc02"  --query "locations[].locationName"
+
+
+ 
+Step 3 — Review Region Details (Failover Priority & Zone Redundancy)
+az cosmosdb show --name "CosmosdbAccountName" --resource-group "ResourceGroupName" --query "locations[].{region:locationName,failoverPriority:failoverPriority,isZoneRedundant:isZoneRedundant}" -o table
+ 
+ 
+ 
+<# display cosmos db regions failover property and zone redundancy status#>
+ 
+e.g.
+az cosmosdb show --name "cosdb-acc02" --resource-group "rg-emea-sql-mig-poc" --query "locations[].{region:locationName,failoverPriority:failoverPriority,isZoneRedundant:isZoneRedundant}" -o table
+
+
+ 
+Step 4 — Trigger Manual Failover
+Initiate a manual failover by changing failover priorities. The region with failoverPriority=0
+becomes the primary (write) region. Verify application connectivity after failover.
+Command (template):
+az cosmosdb failover-priority-change --name "CosmosdbAccountName" --resource-group "ResourceGroupName" --failover-policies "UK South=0" "UK West=1" "Southeast Asia=2"
+ 
+e.g.
+az cosmosdb failover-priority-change --name "cosdb-acc02" --resource-group "rg-emea-sql-mig-poc" --failover-policies "UK South=0" "UK West=1" "Southeast Asia=2"
+
+
+ 
+Step 5 — Verify Provisioning State Post-Failover
+After triggering the failover, poll the provisioning state to confirm the operation has completed successfully. Re-run until the state transitions from 'Updating' to 'Succeeded'.
+Command (template):
+az cosmosdb show --name "CosmosdbAccountName"  --resource-group "ResourceGroupName"   --query "provisioningState"
+ 
+<# cosmos db provisioning check post failover#>
+ 
+az cosmosdb show --name "cosdb-acc02"   --resource-group "rg-emea-sql-mig-poc"   --query "provisioningState"
+ 
+ 
+Step 6 — Remove a Region (Disaster/Outage Scenario)
+In the event of a regional outage, remove the affected region from the Cosmos DB configuration. Only specify the regions you want to retain in the --locations parameter. Omitting a region from --locations will remove it from the account.
+Command (template):
+az cosmosdb update   --name "CosmosdbAccountName" --resource-group "ResourceGroupName"   --locations regionName=ukwest failoverPriority=0
+ 
+<# remove cosmos db region#>
+ 
+az cosmosdb update   --name "cosdb-acc02"  --resource-group "rg-emea-sql-mig-poc"   --locations regionName=ukwest failoverPriority=0
+ 
+ 
+Step 7 — Re-Add a Region After Recovery
+Once the affected region has recovered, add it back to the Cosmos DB account configuration. Note: a region cannot be added back with failoverPriority=0 (primary) directly. Add it with a secondary priority first, then promote it to primary using Step 4 if required.
+Command (template):
+az cosmosdb update --name "CosmosdbAccountName" --resource-group "ResourceGroupName" --locations regionName=uksouth failoverPriority=1 --locations regionName=ukwest failoverPriority=0
+ 
+<# add cosmos db region#>
+ 
+az cosmosdb update --name "cosdb-acc02" --resource-group "rg-emea-sql-mig-poc" --locations regionName=uksouth failoverPriority=1 --locations regionName=ukwest failoverPriority=0
